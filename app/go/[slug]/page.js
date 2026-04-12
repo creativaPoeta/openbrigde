@@ -46,27 +46,23 @@ export async function generateMetadata({ params }) {
       siteName: "OpenBridge",
       locale: "en_US",
       type: "website",
+      images: [
+        {
+          url: previewImageUrl,
+          secureUrl: previewImageUrl,
+          width: 1200,
+          height: 630,
+          alt: `${result.data.title} OpenBridge preview`,
+        },
+      ],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title: result.data.title,
       description: baseDescription,
+      images: [previewImageUrl],
     },
   };
-
-  if (result.data.destinationType === "youtube_video") {
-    metadata.openGraph.images = [
-      {
-        url: previewImageUrl,
-        secureUrl: previewImageUrl,
-        width: 480,
-        height: 360,
-        alt: `${result.data.title} YouTube thumbnail`,
-      },
-    ];
-    metadata.twitter.card = "summary_large_image";
-    metadata.twitter.images = [previewImageUrl];
-  }
 
   return metadata;
 }
