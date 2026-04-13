@@ -66,6 +66,18 @@ function StatusBadge({ isActive }) {
   );
 }
 
+function FilterChip({ label, value }) {
+  if (!value) {
+    return null;
+  }
+
+  return (
+    <span className="rounded-full border border-[var(--stroke)] bg-white px-3 py-1 text-xs uppercase tracking-[0.2em] text-[var(--ink-soft)]">
+      {label}: {value}
+    </span>
+  );
+}
+
 function BarList({ title, items, emptyLabel }) {
   const max = items.length > 0 ? Math.max(...items.map((item) => item.count), 1) : 1;
 
@@ -135,9 +147,16 @@ function TrendBars({ items }) {
 
 export default async function DashboardPage({ searchParams }) {
   const params = await searchParams;
-  const linksResult = await listRecentLinks(12);
-  const eventsResult = await listRecentEvents(20);
-  const summaryResult = await getDashboardSummary();
+  const filters = {
+    q: params.q,
+    linkState: params.linkState,
+    destination: params.destination,
+    source: params.source,
+    campaign: params.campaign,
+  };
+  const linksResult = await listRecentLinks(12, filters);
+  const eventsResult = await listRecentEvents(20, filters);
+  const summaryResult = await getDashboardSummary(filters);
   const appUrl = buildPublicUrl("/").replace(/\/$/, "");
   const enrichedLinks = await Promise.all(
     linksResult.data.map(async (link) => ({
@@ -145,6 +164,8 @@ export default async function DashboardPage({ searchParams }) {
       presentation: await resolveLinkPresentation(link),
     })),
   );
+  const activeFilters = summaryResult.data.activeFilters || {};
+  const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
 
   return (
     <main className="min-h-screen bg-[var(--paper)] px-6 py-12 text-[var(--ink)]">
@@ -173,6 +194,123 @@ export default async function DashboardPage({ searchParams }) {
           <SummaryCard label="Total Events" value={summaryResult.data.totalEvents} />
           <SummaryCard label="Page Views" value={summaryResult.data.pageViews} />
           <SummaryCard label="In-App Events" value={summaryResult.data.inAppEvents} tone="accent" />
+        </section>
+
+        <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Search and filter</p>
+              <h2 className="mt-3 text-2xl font-bold">Slice the dashboard by query, source, campaign, and status</h2>
+              <p className="mt-3 max-w-3xl text-sm leading-7 text-[var(--ink-soft)]">
+                These filters affect the links list, the analytics cards, the trend bars, and the recent tracking
+                signals below.
+              </p>
+            </div>
+            {activeFilterCount > 0 && (
+              <Link
+                href="/dashboard"
+                className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
+              >
+                Clear all filters
+              </Link>
+            )}
+          </div>
+
+          <form method="get" className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+            <label className="grid gap-2 text-sm font-semibold">
+              Search
+              <input
+                name="q"
+                defaultValue={params.q || ""}
+                placeholder="slug, title, URL, or event"
+                className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+              />
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold">
+              Link status
+              <select
+                name="linkState"
+                defaultValue={params.linkState || ""}
+                className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+              >
+                <option value="">All</option>
+                <option value="active">Active</option>
+                <option value="paused">Paused</option>
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold">
+              Destination
+              <select
+                name="destination"
+                defaultValue={params.destination || ""}
+                className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+              >
+                <option value="">All</option>
+                {DESTINATION_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>
+                    {option.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold">
+              Source app
+              <select
+                name="source"
+                defaultValue={params.source || ""}
+                className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+              >
+                <option value="">All</option>
+                {summaryResult.data.availableSources.map((source) => (
+                  <option key={source} value={source}>
+                    {source}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <label className="grid gap-2 text-sm font-semibold">
+              Campaign
+              <input
+                name="campaign"
+                defaultValue={params.campaign || ""}
+                list="campaign-options"
+                placeholder="campaign name"
+                className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+              />
+            </label>
+
+            <div className="flex flex-wrap items-end gap-3 md:col-span-2 xl:col-span-5">
+              <button
+                type="submit"
+                className="rounded-full bg-[var(--signal)] px-6 py-3 font-semibold text-white transition hover:translate-y-[-1px]"
+              >
+                Apply filters
+              </button>
+              <span className="text-sm text-[var(--ink-soft)]">
+                Showing {summaryResult.data.totalLinks} links and {summaryResult.data.totalEvents} events.
+              </span>
+            </div>
+          </form>
+
+          <datalist id="campaign-options">
+            {summaryResult.data.availableCampaigns.map((campaign) => (
+              <option key={campaign} value={campaign} />
+            ))}
+          </datalist>
+
+          {activeFilterCount > 0 && (
+            <div className="mt-5 flex flex-wrap gap-2">
+              <FilterChip label="Search" value={params.q} />
+              <FilterChip label="Status" value={params.linkState} />
+              <FilterChip label="Destination" value={params.destination} />
+              <FilterChip label="Source" value={params.source} />
+              <FilterChip label="Campaign" value={params.campaign} />
+            </div>
+          )}
         </section>
 
         <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
@@ -239,7 +377,9 @@ export default async function DashboardPage({ searchParams }) {
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
           <div className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
             <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Recent links</p>
-            <h2 className="mt-3 text-2xl font-bold">Latest short links</h2>
+            <h2 className="mt-3 text-2xl font-bold">
+              {activeFilterCount > 0 ? "Matching short links" : "Latest short links"}
+            </h2>
 
             <div className="mt-6 grid gap-4">
               {enrichedLinks.length === 0 ? (
@@ -328,7 +468,9 @@ export default async function DashboardPage({ searchParams }) {
 
             <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Recent events</p>
-              <h2 className="mt-3 text-2xl font-bold">Latest tracking signals</h2>
+              <h2 className="mt-3 text-2xl font-bold">
+                {activeFilterCount > 0 ? "Matching tracking signals" : "Latest tracking signals"}
+              </h2>
               <div className="mt-6 grid gap-3">
                 {eventsResult.data.length === 0 ? (
                   <div className="rounded-[1.5rem] bg-[var(--sand)] px-5 py-6 text-sm text-[var(--ink-soft)]">
