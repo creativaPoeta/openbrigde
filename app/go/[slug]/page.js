@@ -2,6 +2,7 @@ import { headers } from "next/headers";
 import { notFound } from "next/navigation";
 import SmartLinkClient from "@/components/SmartLinkClient";
 import { detectLinkEnvironment } from "@/lib/links/environment";
+import { resolveLinkPresentation } from "@/lib/links/presentation";
 import { findShortLinkBySlug } from "@/lib/links/repository";
 import { buildRequestUrl } from "@/lib/site";
 
@@ -24,13 +25,14 @@ export async function generateMetadata({ params }) {
   const headerList = await headers();
   const publicUrl = buildRequestUrl(`/go/${slug}`, headerList);
   const previewImageUrl = buildRequestUrl(`/preview/${slug}`, headerList);
+  const presentation = await resolveLinkPresentation(result.data);
   const baseDescription =
-    result.data.description ||
+    presentation.description ||
     (result.data.destinationType === "youtube_video"
       ? "Open this video with the strongest available YouTube handoff path."
       : "Smart link handoff page.");
   const metadata = {
-    title: result.data.title,
+    title: presentation.activeTitle,
     description: baseDescription,
     alternates: {
       canonical: publicUrl,
@@ -40,7 +42,7 @@ export async function generateMetadata({ params }) {
       follow: false,
     },
     openGraph: {
-      title: result.data.title,
+      title: presentation.activeTitle,
       description: baseDescription,
       url: publicUrl,
       siteName: "OpenBridge",
@@ -49,19 +51,19 @@ export async function generateMetadata({ params }) {
     },
     twitter: {
       card: "summary",
-      title: result.data.title,
+      title: presentation.activeTitle,
       description: baseDescription,
     },
   };
 
-  if (result.data.destinationType === "youtube_video") {
+  if (presentation.imageUrl || result.data.destinationType === "youtube_video") {
     metadata.openGraph.images = [
       {
         url: previewImageUrl,
         secureUrl: previewImageUrl,
-        width: 480,
-        height: 360,
-        alt: `${result.data.title} YouTube thumbnail`,
+        width: 1200,
+        height: 630,
+        alt: `${presentation.activeTitle} preview`,
       },
     ];
     metadata.twitter.card = "summary_large_image";

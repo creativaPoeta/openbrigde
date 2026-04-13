@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { createShortLinkAction } from "@/app/dashboard/actions";
+import LinkUtilityActions from "@/components/links/LinkUtilityActions";
+import PlatformMark from "@/components/links/PlatformMark";
 import { DESTINATION_OPTIONS } from "@/lib/links/catalog";
 import { formatEventGeo } from "@/lib/links/events";
+import { resolveLinkPresentation } from "@/lib/links/presentation";
 import { getDashboardSummary, listRecentEvents, listRecentLinks } from "@/lib/links/repository";
 import { buildPublicUrl } from "@/lib/site";
 
@@ -136,6 +139,12 @@ export default async function DashboardPage({ searchParams }) {
   const eventsResult = await listRecentEvents(20);
   const summaryResult = await getDashboardSummary();
   const appUrl = buildPublicUrl("/").replace(/\/$/, "");
+  const enrichedLinks = await Promise.all(
+    linksResult.data.map(async (link) => ({
+      ...link,
+      presentation: await resolveLinkPresentation(link),
+    })),
+  );
 
   return (
     <main className="min-h-screen bg-[var(--paper)] px-6 py-12 text-[var(--ink)]">
@@ -233,12 +242,12 @@ export default async function DashboardPage({ searchParams }) {
             <h2 className="mt-3 text-2xl font-bold">Latest short links</h2>
 
             <div className="mt-6 grid gap-4">
-              {linksResult.data.length === 0 ? (
+              {enrichedLinks.length === 0 ? (
                 <div className="rounded-[1.5rem] bg-[var(--sand)] px-5 py-6 text-sm text-[var(--ink-soft)]">
                   No links yet. Paste the first URL above.
                 </div>
               ) : (
-                linksResult.data.map((link) => (
+                enrichedLinks.map((link) => (
                   <article
                     key={link.id}
                     className="rounded-[1.5rem] border border-[var(--stroke)] bg-[var(--sand)] p-5"
@@ -246,22 +255,25 @@ export default async function DashboardPage({ searchParams }) {
                     <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-3">
-                          <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">{link.slug}</p>
+                          <PlatformMark type={link.destinationType} label={link.presentation.providerLabel} />
                           <StatusBadge isActive={link.isActive} />
+                          <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">{link.slug}</p>
                         </div>
-                        <h3 className="mt-2 text-xl font-bold">{link.title}</h3>
-                        <p className="mt-2 text-xs uppercase tracking-[0.2em] text-[var(--ink-muted)]">
-                          {link.destinationLabel}
+                        <h3 className="mt-4 text-xl font-bold">{link.presentation.originalTitle}</h3>
+                        {link.customTitle && link.customTitle !== link.presentation.originalTitle && (
+                          <p className="mt-2 text-sm text-[var(--ink-soft)]">
+                            Active custom title: <strong className="text-[var(--ink)]">{link.customTitle}</strong>
+                          </p>
+                        )}
+                        <p className="mt-3 text-xs uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                          Original destination URL
                         </p>
-                        <p className="mt-2 break-all text-sm leading-7 text-[var(--ink-soft)]">{link.webUrl}</p>
+                        <p className="mt-2 break-all text-sm leading-7 text-[var(--ink-soft)]">{link.presentation.sourceUrl}</p>
+                        <p className="mt-3 text-xs uppercase tracking-[0.2em] text-[var(--ink-muted)]">OpenBridge short URL</p>
+                        <p className="mt-2 break-all text-sm leading-7 text-[var(--ink-soft)]">{link.publicUrl}</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
-                        <Link
-                          href={`/dashboard/links/${link.slug}`}
-                          className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
-                        >
-                          Manage
-                        </Link>
+                        <LinkUtilityActions publicUrl={link.publicUrl} title={link.presentation.activeTitle} />
                         {link.isActive && (
                           <Link
                             href={`/go/${link.slug}`}
@@ -270,10 +282,13 @@ export default async function DashboardPage({ searchParams }) {
                             Open
                           </Link>
                         )}
+                        <Link
+                          href={`/dashboard/links/${link.slug}`}
+                          className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
+                        >
+                          Manage
+                        </Link>
                       </div>
-                    </div>
-                    <div className="mt-4 break-all rounded-2xl bg-white px-4 py-3 text-xs text-[var(--ink-soft)]">
-                      {link.publicUrl}
                     </div>
                   </article>
                 ))

@@ -1,7 +1,11 @@
+import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { toggleShortLinkStatusAction, updateShortLinkAction } from "@/app/dashboard/actions";
+import LinkUtilityActions from "@/components/links/LinkUtilityActions";
+import PlatformMark from "@/components/links/PlatformMark";
 import { formatEventGeo } from "@/lib/links/events";
+import { resolveLinkPresentation } from "@/lib/links/presentation";
 import { getShortLinkDetailBySlug } from "@/lib/links/repository";
 
 export const dynamic = "force-dynamic";
@@ -147,6 +151,7 @@ export default async function LinkDetailPage({ params, searchParams }) {
 
   const { link, analytics } = result.data;
   const nextState = link.isActive ? "inactive" : "active";
+  const presentation = await resolveLinkPresentation(link);
 
   return (
     <main className="min-h-screen bg-[var(--paper)] px-6 py-12 text-[var(--ink)]">
@@ -155,11 +160,17 @@ export default async function LinkDetailPage({ params, searchParams }) {
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--ink-muted)]">OpenBridge link detail</p>
             <div className="mt-4 flex flex-wrap items-center gap-3">
-              <h1 className="text-4xl font-black sm:text-5xl">{link.title}</h1>
+              <PlatformMark type={link.destinationType} label={presentation.providerLabel} />
               <StatusBadge isActive={link.isActive} />
             </div>
+            <h1 className="mt-4 text-4xl font-black sm:text-5xl">{presentation.activeTitle}</h1>
+            {link.customTitle && link.customTitle !== presentation.originalTitle && (
+              <p className="mt-4 text-sm leading-7 text-[var(--ink-soft)]">
+                Resolved source title: <strong className="text-[var(--ink)]">{presentation.originalTitle}</strong>
+              </p>
+            )}
             <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--ink-soft)]">
-              {link.description || "This link is using the default landing copy. Add a custom description below if needed."}
+              {presentation.description || "This link is using the default landing copy. Add a custom description below if needed."}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -195,6 +206,11 @@ export default async function LinkDetailPage({ params, searchParams }) {
 
             <div className="mt-6 grid gap-4 text-sm">
               <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
+                <p className="font-semibold text-[var(--ink)]">Resolved source title</p>
+                <p className="mt-2 text-[var(--ink-soft)]">{presentation.originalTitle}</p>
+              </div>
+
+              <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
                 <p className="font-semibold text-[var(--ink)]">Slug</p>
                 <p className="mt-2 text-[var(--ink-soft)]">{link.slug}</p>
                 <p className="mt-2 text-xs leading-6 text-[var(--ink-muted)]">
@@ -203,9 +219,26 @@ export default async function LinkDetailPage({ params, searchParams }) {
               </div>
 
               <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <p className="font-semibold text-[var(--ink)]">Public URL</p>
+                <p className="font-semibold text-[var(--ink)]">Original destination URL</p>
+                <p className="mt-2 break-all text-[var(--ink-soft)]">{presentation.sourceUrl}</p>
+              </div>
+
+              <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
+                <p className="font-semibold text-[var(--ink)]">OpenBridge short URL</p>
                 <p className="mt-2 break-all text-[var(--ink-soft)]">{link.publicUrl}</p>
               </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <LinkUtilityActions publicUrl={link.publicUrl} title={presentation.activeTitle} />
+              {link.isActive && (
+                <Link
+                  href={`/go/${link.slug}`}
+                  className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
+                >
+                  Open
+                </Link>
+              )}
             </div>
 
             <form action={updateShortLinkAction} className="mt-6 grid gap-4">
@@ -299,6 +332,32 @@ export default async function LinkDetailPage({ params, searchParams }) {
           </section>
 
           <div className="grid gap-6">
+            <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
+              <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Share preview</p>
+              <h2 className="mt-3 text-2xl font-bold">How this link should look when pasted</h2>
+              <div className="mt-6 overflow-hidden rounded-[1.75rem] border border-[var(--stroke)] bg-[var(--sand)]">
+                <Image
+                  src={`/preview/${link.slug}`}
+                  alt={`${presentation.activeTitle} preview`}
+                  width={1200}
+                  height={630}
+                  unoptimized
+                  className="h-64 w-full object-cover"
+                />
+                <div className="grid gap-3 p-5">
+                  <div className="flex flex-wrap items-center gap-3">
+                    <PlatformMark type={link.destinationType} label={presentation.providerLabel} />
+                    <span className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">
+                      {presentation.sourceHost || "shared link"}
+                    </span>
+                  </div>
+                  <p className="text-xl font-bold text-[var(--ink)]">{presentation.activeTitle}</p>
+                  <p className="text-sm leading-7 text-[var(--ink-soft)]">{presentation.description}</p>
+                  <p className="break-all text-xs text-[var(--ink-muted)]">{link.publicUrl}</p>
+                </div>
+              </div>
+            </section>
+
             <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Source mix</p>
               <h2 className="mt-3 text-2xl font-bold">Where this link is being opened</h2>

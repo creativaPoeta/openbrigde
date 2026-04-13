@@ -1,4 +1,5 @@
 import { findShortLinkBySlug } from "@/lib/links/repository";
+import { resolveLinkPresentation } from "@/lib/links/presentation";
 
 export const dynamic = "force-dynamic";
 
@@ -62,6 +63,38 @@ async function fetchYouTubeThumbnail(videoId) {
   return null;
 }
 
+async function fetchRemoteImage(imageUrl) {
+  try {
+    const response = await fetch(imageUrl, {
+      cache: "force-cache",
+      headers: {
+        "user-agent": "OpenBridgeBot/1.0",
+      },
+    });
+
+    if (!response.ok) {
+      return null;
+    }
+
+    const contentType = response.headers.get("content-type") || "";
+    if (!contentType.startsWith("image/")) {
+      return null;
+    }
+
+    const bytes = await response.arrayBuffer();
+    if (!bytes.byteLength) {
+      return null;
+    }
+
+    return new Response(bytes, {
+      status: 200,
+      headers: buildCacheHeaders(contentType),
+    });
+  } catch {
+    return null;
+  }
+}
+
 export async function GET(_req, { params }) {
   const { slug } = await params;
   const result = await findShortLinkBySlug(slug);
@@ -77,7 +110,15 @@ export async function GET(_req, { params }) {
     }
   }
 
-  return new Response(buildSvgFallback(result.data.title), {
+  const presentation = await resolveLinkPresentation(result.data);
+  if (presentation.imageUrl) {
+    const imageResponse = await fetchRemoteImage(presentation.imageUrl);
+    if (imageResponse) {
+      return imageResponse;
+    }
+  }
+
+  return new Response(buildSvgFallback(presentation?.activeTitle || result.data.title), {
     status: 200,
     headers: buildCacheHeaders("image/svg+xml"),
   });
