@@ -166,6 +166,15 @@ export default async function DashboardPage({ searchParams }) {
   );
   const activeFilters = summaryResult.data.activeFilters || {};
   const activeFilterCount = Object.values(activeFilters).filter(Boolean).length;
+  const exportParams = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(filters)) {
+    if (value) {
+      exportParams.set(key, value);
+    }
+  }
+
+  const exportHref = `/api/exports/links${exportParams.toString() ? `?${exportParams.toString()}` : ""}`;
 
   return (
     <main className="min-h-screen bg-[var(--paper)] px-6 py-12 text-[var(--ink)]">
@@ -207,12 +216,20 @@ export default async function DashboardPage({ searchParams }) {
               </p>
             </div>
             {activeFilterCount > 0 && (
-              <Link
-                href="/dashboard"
-                className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
-              >
-                Clear all filters
-              </Link>
+              <div className="flex flex-wrap gap-3">
+                <Link
+                  href={exportHref}
+                  className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
+                >
+                  Export CSV
+                </Link>
+                <Link
+                  href="/dashboard"
+                  className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-white"
+                >
+                  Clear all filters
+                </Link>
+              </div>
             )}
           </div>
 
@@ -290,6 +307,12 @@ export default async function DashboardPage({ searchParams }) {
               >
                 Apply filters
               </button>
+              <Link
+                href={exportHref}
+                className="rounded-full border border-[var(--stroke)] px-6 py-3 font-semibold text-[var(--ink)] transition hover:bg-white"
+              >
+                Export CSV
+              </Link>
               <span className="text-sm text-[var(--ink-soft)]">
                 Showing {summaryResult.data.totalLinks} links and {summaryResult.data.totalEvents} events.
               </span>
