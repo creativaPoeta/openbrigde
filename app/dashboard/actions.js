@@ -1,18 +1,13 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { createShortLink, updateShortLinkStatus } from "@/lib/links/repository";
+import { createShortLink, updateShortLink, updateShortLinkStatus } from "@/lib/links/repository";
 
 export async function createShortLinkAction(formData) {
   "use server";
 
   const result = await createShortLink({
-    title: formData.get("title"),
-    slug: formData.get("slug"),
-    description: formData.get("description"),
+    sourceUrl: formData.get("sourceUrl"),
     campaign: formData.get("campaign"),
-    destinationType: formData.get("destinationType"),
-    destinationValue: formData.get("destinationValue"),
-    ctaLabel: formData.get("ctaLabel"),
   });
 
   revalidatePath("/dashboard");
@@ -21,7 +16,31 @@ export async function createShortLinkAction(formData) {
     redirect(`/dashboard?error=${encodeURIComponent(result.error)}`);
   }
 
-  redirect(`/dashboard?created=${encodeURIComponent(result.data.slug)}`);
+  redirect(`/dashboard/links/${result.data.slug}?status=created`);
+}
+
+export async function updateShortLinkAction(formData) {
+  "use server";
+
+  const slug = String(formData.get("slug") || "").trim();
+  const result = await updateShortLink(slug, {
+    sourceUrl: formData.get("sourceUrl"),
+    title: formData.get("title"),
+    description: formData.get("description"),
+    campaign: formData.get("campaign"),
+    ctaLabel: formData.get("ctaLabel"),
+  });
+
+  revalidatePath("/dashboard");
+  revalidatePath(`/dashboard/links/${slug}`);
+  revalidatePath(`/go/${slug}`);
+  revalidatePath(`/preview/${slug}`);
+
+  if (result.error) {
+    redirect(`/dashboard/links/${slug}?error=${encodeURIComponent(result.error)}`);
+  }
+
+  redirect(`/dashboard/links/${slug}?status=updated`);
 }
 
 export async function toggleShortLinkStatusAction(formData) {

@@ -1,12 +1,21 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { toggleShortLinkStatusAction } from "@/app/dashboard/actions";
+import { toggleShortLinkStatusAction, updateShortLinkAction } from "@/app/dashboard/actions";
+import { formatEventGeo } from "@/lib/links/events";
 import { getShortLinkDetailBySlug } from "@/lib/links/repository";
 
 export const dynamic = "force-dynamic";
 
 function Flash({ status, error }) {
-  if (status === "activated" || status === "deactivated") {
+  if (status === "created") {
+    return (
+      <div className="rounded-[1.5rem] border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-800">
+        Link created successfully. You can refine its settings below.
+      </div>
+    );
+  }
+
+  if (status === "updated" || status === "activated" || status === "deactivated") {
     return (
       <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
         Link {status}.
@@ -83,7 +92,7 @@ export default async function LinkDetailPage({ params, searchParams }) {
               <StatusBadge isActive={link.isActive} />
             </div>
             <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--ink-soft)]">
-              {link.description || "No additional landing-page description was provided for this link."}
+              {link.description || "This link is using the default landing copy. Add a custom description below if needed."}
             </p>
           </div>
           <div className="flex flex-wrap gap-3">
@@ -115,34 +124,91 @@ export default async function LinkDetailPage({ params, searchParams }) {
 
         <div className="grid gap-6 xl:grid-cols-[0.95fr_1.05fr]">
           <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
-            <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Link settings</p>
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Edit link</p>
 
-            <dl className="mt-6 grid gap-4 text-sm">
+            <div className="mt-6 grid gap-4 text-sm">
               <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <dt className="font-semibold text-[var(--ink)]">Slug</dt>
-                <dd className="mt-2 text-[var(--ink-soft)]">{link.slug}</dd>
+                <p className="font-semibold text-[var(--ink)]">Slug</p>
+                <p className="mt-2 text-[var(--ink-soft)]">{link.slug}</p>
+                <p className="mt-2 text-xs leading-6 text-[var(--ink-muted)]">
+                  The slug stays stable after creation so shared links do not break.
+                </p>
               </div>
 
               <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <dt className="font-semibold text-[var(--ink)]">Destination adapter</dt>
-                <dd className="mt-2 text-[var(--ink-soft)]">{link.destinationLabel}</dd>
+                <p className="font-semibold text-[var(--ink)]">Public URL</p>
+                <p className="mt-2 break-all text-[var(--ink-soft)]">{link.publicUrl}</p>
+              </div>
+            </div>
+
+            <form action={updateShortLinkAction} className="mt-6 grid gap-4">
+              <input type="hidden" name="slug" value={link.slug} />
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Destination URL
+                <input
+                  name="sourceUrl"
+                  defaultValue={link.webUrl}
+                  required
+                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Custom title
+                <input
+                  name="title"
+                  defaultValue={link.customTitle}
+                  placeholder="Optional display title"
+                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+                />
+              </label>
+
+              <label className="grid gap-2 text-sm font-semibold">
+                Description
+                <textarea
+                  name="description"
+                  rows="4"
+                  defaultValue={link.description}
+                  placeholder="Optional landing-page context"
+                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+                />
+              </label>
+
+              <div className="grid gap-4 md:grid-cols-2">
+                <label className="grid gap-2 text-sm font-semibold">
+                  Campaign label
+                  <input
+                    name="campaign"
+                    defaultValue={link.campaign}
+                    placeholder="Optional campaign tag"
+                    className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+                  />
+                </label>
+
+                <label className="grid gap-2 text-sm font-semibold">
+                  CTA label
+                  <input
+                    name="ctaLabel"
+                    defaultValue={link.customCtaLabel}
+                    placeholder={link.ctaLabel}
+                    className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
+                  />
+                </label>
               </div>
 
-              <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <dt className="font-semibold text-[var(--ink)]">Public URL</dt>
-                <dd className="mt-2 break-all text-[var(--ink-soft)]">{link.publicUrl}</dd>
+              <div className="rounded-[1.5rem] bg-[var(--sand)] px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
+                Each save re-detects the destination adapter from the URL. Current adapter:{" "}
+                <strong className="text-[var(--ink)]">{link.destinationLabel}</strong>
               </div>
 
-              <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <dt className="font-semibold text-[var(--ink)]">Destination URL</dt>
-                <dd className="mt-2 break-all text-[var(--ink-soft)]">{link.webUrl}</dd>
-              </div>
-
-              <div className="rounded-[1.25rem] bg-[var(--sand)] p-4">
-                <dt className="font-semibold text-[var(--ink)]">Campaign</dt>
-                <dd className="mt-2 text-[var(--ink-soft)]">{link.campaign || "Not set"}</dd>
-              </div>
-            </dl>
+              <button
+                type="submit"
+                className="rounded-full bg-[var(--signal)] px-6 py-3 font-semibold text-white transition hover:translate-y-[-1px]"
+              >
+                Save changes
+              </button>
+            </form>
 
             <form action={toggleShortLinkStatusAction} className="mt-6">
               <input type="hidden" name="slug" value={link.slug} />
@@ -214,6 +280,7 @@ export default async function LinkDetailPage({ params, searchParams }) {
                       <p className="mt-1 text-[var(--ink-soft)]">Source: {event.source_app || "web"}</p>
                       <p className="text-[var(--ink-soft)]">OS: {event.os || "unknown"}</p>
                       <p className="text-[var(--ink-soft)]">Browser: {event.browser || "unknown"}</p>
+                      <p className="text-[var(--ink-soft)]">Place: {formatEventGeo(event.event_meta)}</p>
                       <p className="text-[var(--ink-soft)]">In-app: {event.in_app ? "yes" : "no"}</p>
                     </article>
                   ))

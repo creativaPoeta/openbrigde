@@ -16,6 +16,21 @@ function cleanText(value, max = 500) {
   return String(value || "").trim().slice(0, max);
 }
 
+function getGeoMeta(headers) {
+  const geo = {
+    country: cleanText(headers.get("x-vercel-ip-country"), 32),
+    region: cleanText(headers.get("x-vercel-ip-country-region"), 80),
+    city: cleanText(headers.get("x-vercel-ip-city"), 80),
+    continent: cleanText(headers.get("x-vercel-ip-continent"), 32),
+  };
+
+  if (!geo.country && !geo.region && !geo.city && !geo.continent) {
+    return null;
+  }
+
+  return geo;
+}
+
 export async function POST(req) {
   let body;
 
@@ -35,6 +50,10 @@ export async function POST(req) {
     return NextResponse.json({ ok: true, stored: false, reason: "missing_env" });
   }
 
+  const incomingMeta = body.meta && typeof body.meta === "object" ? body.meta : {};
+  const geo = getGeoMeta(req.headers);
+  const eventMeta = geo ? { ...incomingMeta, geo } : incomingMeta;
+
   const { error } = await client.from("link_events").insert({
     link_id: cleanText(body.linkId, 80) || null,
     slug_snapshot: cleanText(body.slug, 120),
@@ -47,7 +66,7 @@ export async function POST(req) {
     os: cleanText(body.os, 20),
     browser: cleanText(body.browser, 40),
     in_app: body.inApp === true,
-    event_meta: body.meta && typeof body.meta === "object" ? body.meta : {},
+    event_meta: eventMeta,
   });
 
   if (error) {

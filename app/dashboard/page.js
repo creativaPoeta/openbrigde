@@ -1,21 +1,22 @@
 import Link from "next/link";
 import { createShortLinkAction } from "@/app/dashboard/actions";
 import { DESTINATION_OPTIONS } from "@/lib/links/catalog";
+import { formatEventGeo } from "@/lib/links/events";
 import { getDashboardSummary, listRecentEvents, listRecentLinks } from "@/lib/links/repository";
 import { buildPublicUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 function Flash({ created, error, status }) {
-  if (created) {
+  if (created || status === "created") {
     return (
       <div className="rounded-[1.5rem] border border-green-200 bg-green-50 px-5 py-4 text-sm text-green-800">
-        Link created successfully: <strong>{created}</strong>
+        Link created successfully.
       </div>
     );
   }
 
-  if (status === "activated" || status === "deactivated") {
+  if (status === "activated" || status === "deactivated" || status === "updated") {
     return (
       <div className="rounded-[1.5rem] border border-blue-200 bg-blue-50 px-5 py-4 text-sm text-blue-800">
         Link {status}.
@@ -75,9 +76,10 @@ export default async function DashboardPage({ searchParams }) {
         <header className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-xs uppercase tracking-[0.35em] text-[var(--ink-muted)]">OpenBridge dashboard</p>
-            <h1 className="mt-4 text-4xl font-black sm:text-5xl">Create short links and inspect the handoff.</h1>
+            <h1 className="mt-4 text-4xl font-black sm:text-5xl">Paste one URL. OpenBridge handles the rest.</h1>
             <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--ink-soft)]">
-              This dashboard now supports web URLs, YouTube, Instagram, TikTok, WhatsApp, Telegram, App Store, and Play Store links.
+              The app now auto-detects the destination adapter, generates the slug, and prepares the best available
+              handoff path. Advanced edits happen after creation on the link detail page.
             </p>
           </div>
           <Link
@@ -97,102 +99,46 @@ export default async function DashboardPage({ searchParams }) {
           <SummaryCard label="In-App Events" value={summaryResult.data.inAppEvents} tone="accent" />
         </section>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_1.1fr]">
+        <div className="grid gap-6 lg:grid-cols-[0.92fr_1.08fr]">
           <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
             <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Create a link</p>
+            <h2 className="mt-3 text-2xl font-bold">One field in, full smart link out.</h2>
+
             <form action={createShortLinkAction} className="mt-6 grid gap-4">
               <label className="grid gap-2 text-sm font-semibold">
-                Title
+                Destination URL
                 <input
-                  name="title"
-                  placeholder="April YouTube push"
-                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Slug
-                <input
-                  name="slug"
-                  placeholder="april-youtube-push"
-                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                />
-              </label>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Description
-                <textarea
-                  name="description"
-                  rows="3"
-                  placeholder="Optional landing-page context"
-                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                />
-              </label>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label className="grid gap-2 text-sm font-semibold">
-                  Destination type
-                  <select
-                    name="destinationType"
-                    defaultValue="web"
-                    className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                  >
-                    {DESTINATION_OPTIONS.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
-                </label>
-
-                <label className="grid gap-2 text-sm font-semibold">
-                  CTA label
-                  <input
-                    name="ctaLabel"
-                    placeholder="Open destination"
-                    className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                  />
-                </label>
-              </div>
-
-              <label className="grid gap-2 text-sm font-semibold">
-                Destination value
-                <input
-                  name="destinationValue"
-                  placeholder="Use the examples on the right for the selected adapter"
+                  name="sourceUrl"
+                  placeholder="https://www.youtube.com/watch?v=dQw4w9WgXcQ"
                   required
                   className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
                 />
               </label>
 
-              <label className="grid gap-2 text-sm font-semibold">
-                Campaign label
-                <input
-                  name="campaign"
-                  placeholder="fb-april"
-                  className="rounded-2xl border border-[var(--stroke)] bg-[var(--paper)] px-4 py-3 font-normal outline-none"
-                />
-              </label>
+              <div className="rounded-[1.5rem] bg-[var(--sand)] px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
+                OpenBridge will auto-detect the adapter, generate a unique slug, and choose a default CTA. You can
+                rename the link, add campaign notes, or swap the destination right after creation.
+              </div>
 
               <button
                 type="submit"
                 className="mt-2 rounded-full bg-[var(--signal)] px-6 py-3 font-semibold text-white transition hover:translate-y-[-1px]"
               >
-                Create short link
+                Create smart link
               </button>
             </form>
           </section>
 
           <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
-            <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Input guide</p>
-            <div className="mt-5 space-y-4 text-sm leading-7 text-[var(--ink-soft)]">
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Supported URLs</p>
+            <div className="mt-5 grid gap-4 md:grid-cols-2">
               {DESTINATION_OPTIONS.map((option) => (
                 <div
                   key={option.value}
                   className="rounded-[1.25rem] border border-[var(--stroke)] bg-[var(--sand)] px-4 py-4"
                 >
                   <p className="font-semibold text-[var(--ink)]">{option.label}</p>
-                  <p className="mt-1">{option.description}</p>
+                  <p className="mt-1 text-sm leading-7 text-[var(--ink-soft)]">{option.description}</p>
                   <p className="mt-2 break-all rounded-xl bg-white px-3 py-2 text-xs text-[var(--ink-soft)]">
                     {option.example}
                   </p>
@@ -200,21 +146,10 @@ export default async function DashboardPage({ searchParams }) {
               ))}
             </div>
 
-            <div className="mt-6 space-y-4 text-sm leading-7 text-[var(--ink-soft)]">
-              <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Supabase bootstrap</p>
-              <p>
-                1. Copy <code className="rounded bg-[var(--paper)] px-2 py-1">.env.example</code> to{" "}
-                <code className="rounded bg-[var(--paper)] px-2 py-1">.env.local</code>.
-              </p>
-              <p>2. Fill your Supabase URL, anon key, and service role key.</p>
-              <p>
-                3. Run the SQL in{" "}
-                <code className="rounded bg-[var(--paper)] px-2 py-1">docs/SUPABASE.sql</code>.
-              </p>
-              <p>
-                4. Then create links here and open them under{" "}
-                <code className="rounded bg-[var(--paper)] px-2 py-1">{appUrl}/go/your-slug</code>.
-              </p>
+            <div className="mt-6 rounded-[1.5rem] bg-[var(--sand)] px-4 py-4 text-sm leading-7 text-[var(--ink-soft)]">
+              The public shareable pattern stays <code className="rounded bg-white px-2 py-1">{appUrl}/go/your-slug</code>.
+              Slugs are generated automatically and the detail page becomes the place for campaign labels, custom
+              titles, CTA overrides, and pause/reactivate actions.
             </div>
 
             {(linksResult.error || eventsResult.error || summaryResult.error) && (
@@ -233,7 +168,7 @@ export default async function DashboardPage({ searchParams }) {
             <div className="mt-6 grid gap-4">
               {linksResult.data.length === 0 ? (
                 <div className="rounded-[1.5rem] bg-[var(--sand)] px-5 py-6 text-sm text-[var(--ink-soft)]">
-                  No links yet. Create the first one after wiring Supabase.
+                  No links yet. Paste the first URL above.
                 </div>
               ) : (
                 linksResult.data.map((link) => (
@@ -340,6 +275,7 @@ export default async function DashboardPage({ searchParams }) {
                       <p className="mt-1 text-[var(--ink-soft)]">Slug: {event.slug_snapshot || "n/a"}</p>
                       <p className="text-[var(--ink-soft)]">Source: {event.source_app || "web"}</p>
                       <p className="text-[var(--ink-soft)]">OS: {event.os || "unknown"}</p>
+                      <p className="text-[var(--ink-soft)]">Place: {formatEventGeo(event.event_meta)}</p>
                     </article>
                   ))
                 )}
