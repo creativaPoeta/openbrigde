@@ -1,7 +1,9 @@
+import { signoutAction } from "@/app/auth/actions";
 import Link from "next/link";
 import { createShortLinkAction } from "@/app/dashboard/actions";
 import LinkUtilityActions from "@/components/links/LinkUtilityActions";
 import PlatformMark from "@/components/links/PlatformMark";
+import { requireCurrentUser } from "@/lib/auth/session";
 import { DESTINATION_OPTIONS } from "@/lib/links/catalog";
 import { formatEventGeo } from "@/lib/links/events";
 import { resolveLinkPresentation } from "@/lib/links/presentation";
@@ -146,6 +148,7 @@ function TrendBars({ items }) {
 }
 
 export default async function DashboardPage({ searchParams }) {
+  const user = await requireCurrentUser("/dashboard");
   const params = await searchParams;
   const filters = {
     q: params.q,
@@ -154,9 +157,9 @@ export default async function DashboardPage({ searchParams }) {
     source: params.source,
     campaign: params.campaign,
   };
-  const linksResult = await listRecentLinks(12, filters);
-  const eventsResult = await listRecentEvents(20, filters);
-  const summaryResult = await getDashboardSummary(filters);
+  const linksResult = await listRecentLinks(12, filters, user.id);
+  const eventsResult = await listRecentEvents(20, filters, user.id);
+  const summaryResult = await getDashboardSummary(filters, user.id);
   const appUrl = buildPublicUrl("/").replace(/\/$/, "");
   const enrichedLinks = await Promise.all(
     linksResult.data.map(async (link) => ({
@@ -187,13 +190,24 @@ export default async function DashboardPage({ searchParams }) {
               The app now auto-detects the destination adapter, generates the slug, and prepares the best available
               handoff path. Advanced edits happen after creation on the link detail page.
             </p>
+            <p className="mt-3 text-sm text-[var(--ink-muted)]">Signed in as {user.email}</p>
           </div>
-          <Link
-            href="/"
-            className="rounded-full border border-[var(--stroke)] px-5 py-3 font-semibold text-[var(--ink)] transition hover:bg-white"
-          >
-            Back to home
-          </Link>
+          <div className="flex flex-wrap gap-3">
+            <Link
+              href="/"
+              className="rounded-full border border-[var(--stroke)] px-5 py-3 font-semibold text-[var(--ink)] transition hover:bg-white"
+            >
+              Back to home
+            </Link>
+            <form action={signoutAction}>
+              <button
+                type="submit"
+                className="rounded-full border border-[var(--stroke)] px-5 py-3 font-semibold text-[var(--ink)] transition hover:bg-white"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
         </header>
 
         <Flash created={params.created} error={params.error} status={params.status} />

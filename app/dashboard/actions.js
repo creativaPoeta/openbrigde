@@ -1,14 +1,16 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { requireCurrentUser } from "@/lib/auth/session";
 import { createShortLink, updateShortLink, updateShortLinkStatus } from "@/lib/links/repository";
 
 export async function createShortLinkAction(formData) {
   "use server";
+  const user = await requireCurrentUser("/dashboard");
 
   const result = await createShortLink({
     sourceUrl: formData.get("sourceUrl"),
     campaign: formData.get("campaign"),
-  });
+  }, user.id);
 
   revalidatePath("/dashboard");
 
@@ -22,6 +24,7 @@ export async function createShortLinkAction(formData) {
 export async function updateShortLinkAction(formData) {
   "use server";
 
+  const user = await requireCurrentUser("/dashboard");
   const slug = String(formData.get("slug") || "").trim();
   const result = await updateShortLink(slug, {
     sourceUrl: formData.get("sourceUrl"),
@@ -29,7 +32,7 @@ export async function updateShortLinkAction(formData) {
     description: formData.get("description"),
     campaign: formData.get("campaign"),
     ctaLabel: formData.get("ctaLabel"),
-  });
+  }, user.id);
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/links/${slug}`);
@@ -46,11 +49,12 @@ export async function updateShortLinkAction(formData) {
 export async function toggleShortLinkStatusAction(formData) {
   "use server";
 
+  const user = await requireCurrentUser("/dashboard");
   const slug = String(formData.get("slug") || "").trim();
   const nextState = String(formData.get("nextState") || "").trim() === "active";
   const returnTo = String(formData.get("returnTo") || "").trim() || `/dashboard/links/${slug}`;
 
-  const result = await updateShortLinkStatus(slug, nextState);
+  const result = await updateShortLinkStatus(slug, nextState, user.id);
 
   revalidatePath("/dashboard");
   revalidatePath(`/dashboard/links/${slug}`);

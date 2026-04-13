@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { ArrowRight, BarChart3, ExternalLink, Smartphone } from "lucide-react";
+import { signoutAction } from "@/app/auth/actions";
+import { getCurrentUser } from "@/lib/auth/session";
 
 const pillars = [
   {
@@ -19,7 +21,9 @@ const pillars = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
+  const user = await getCurrentUser();
+
   return (
     <main className="min-h-screen bg-[var(--paper)] text-[var(--ink)]">
       <section className="mx-auto flex min-h-screen max-w-7xl flex-col justify-between px-6 py-10 lg:px-10">
@@ -27,14 +31,42 @@ export default function HomePage() {
           <div>
             <p className="text-xs uppercase tracking-[0.4em] text-[var(--ink-muted)]">OpenBridge</p>
             <p className="mt-2 text-sm text-[var(--ink-soft)]">Smart links for escaping embedded browsers and preserving conversion.</p>
+            {user?.email && <p className="mt-2 text-sm text-[var(--ink-muted)]">Signed in as {user.email}</p>}
           </div>
           <div className="flex flex-wrap gap-3">
-            <Link
-              href="/dashboard"
-              className="rounded-full bg-[var(--ink)] px-4 py-2 text-sm font-semibold text-white transition hover:translate-y-[-1px]"
-            >
-              Dashboard
-            </Link>
+            {user ? (
+              <>
+                <Link
+                  href="/dashboard"
+                  className="rounded-full bg-[var(--ink)] px-4 py-2 text-sm font-semibold text-white transition hover:translate-y-[-1px]"
+                >
+                  Dashboard
+                </Link>
+                <form action={signoutAction}>
+                  <button
+                    type="submit"
+                    className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--sand)]"
+                  >
+                    Sign out
+                  </button>
+                </form>
+              </>
+            ) : (
+              <>
+                <Link
+                  href="/login"
+                  className="rounded-full bg-[var(--ink)] px-4 py-2 text-sm font-semibold text-white transition hover:translate-y-[-1px]"
+                >
+                  Sign in
+                </Link>
+                <Link
+                  href="/sign-up"
+                  className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--sand)]"
+                >
+                  Create account
+                </Link>
+              </>
+            )}
             <Link
               href="/api/health"
               className="rounded-full border border-[var(--stroke)] px-4 py-2 text-sm font-semibold text-[var(--ink)] transition hover:bg-[var(--sand)]"
@@ -48,28 +80,28 @@ export default function HomePage() {
           <div>
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--stroke)] bg-white/70 px-4 py-2 text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">
               <span className="inline-block h-2 w-2 rounded-full bg-[var(--signal)]" />
-              MVP now includes a working dashboard and short-link pipeline
+              MVP now includes auth, account ownership, analytics, and exports
             </div>
 
             <h1 className="mt-8 max-w-4xl text-5xl font-black leading-[0.94] sm:text-6xl lg:text-7xl">
-              Turn trapped clicks into routed handoffs, measurable outcomes, and cleaner campaign decisions.
+              Turn trapped clicks into routed handoffs, measurable outcomes, and account-ready SaaS analytics.
             </h1>
 
             <p className="mt-8 max-w-2xl text-lg leading-8 text-[var(--ink-soft)]">
-              OpenBridge now has a real data flow: create a short link, open it through a smart landing page,
-              and record the handoff signals you need to diagnose embedded-browser loss.
+              OpenBridge now separates workspaces by account, keeps public short links open to end users, and gives
+              each owner a protected dashboard for links, tracking, exports, and future billing.
             </p>
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
-                href="/dashboard"
+                href={user ? "/dashboard" : "/sign-up"}
                 className="inline-flex items-center gap-2 rounded-full bg-[var(--signal)] px-6 py-3 font-semibold text-white transition hover:translate-y-[-1px]"
               >
-                Open dashboard
+                {user ? "Open dashboard" : "Create your account"}
                 <ArrowRight size={18} />
               </Link>
               <div className="rounded-full border border-[var(--stroke)] px-6 py-3 text-sm font-medium text-[var(--ink-soft)]">
-                Supported now: Web URL + YouTube video
+                Public handoff links stay shareable without login
               </div>
             </div>
           </div>

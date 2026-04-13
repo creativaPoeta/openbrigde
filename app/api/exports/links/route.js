@@ -1,3 +1,4 @@
+import { getCurrentUser } from "@/lib/auth/session";
 import { getDashboardExportRows } from "@/lib/links/repository";
 
 export const dynamic = "force-dynamic";
@@ -65,6 +66,16 @@ function buildCsv(rows) {
 }
 
 export async function GET(req) {
+  const user = await getCurrentUser();
+  if (!user) {
+    return new Response("Authentication required.", {
+      status: 401,
+      headers: {
+        "content-type": "text/plain; charset=utf-8",
+      },
+    });
+  }
+
   const { searchParams } = new URL(req.url);
   const filters = {
     q: searchParams.get("q") || "",
@@ -74,7 +85,7 @@ export async function GET(req) {
     campaign: searchParams.get("campaign") || "",
   };
 
-  const result = await getDashboardExportRows(filters);
+  const result = await getDashboardExportRows(filters, user.id);
   if (result.error) {
     return new Response(result.error, {
       status: 500,

@@ -1,9 +1,11 @@
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { signoutAction } from "@/app/auth/actions";
 import { toggleShortLinkStatusAction, updateShortLinkAction } from "@/app/dashboard/actions";
 import LinkUtilityActions from "@/components/links/LinkUtilityActions";
 import PlatformMark from "@/components/links/PlatformMark";
+import { requireCurrentUser } from "@/lib/auth/session";
 import { formatEventGeo } from "@/lib/links/events";
 import { resolveLinkPresentation } from "@/lib/links/presentation";
 import { getShortLinkDetailBySlug } from "@/lib/links/repository";
@@ -141,9 +143,10 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function LinkDetailPage({ params, searchParams }) {
+  const user = await requireCurrentUser("/dashboard");
   const { slug } = await params;
   const query = await searchParams;
-  const result = await getShortLinkDetailBySlug(slug);
+  const result = await getShortLinkDetailBySlug(slug, user.id);
 
   if (!result.data?.link) {
     notFound();
@@ -172,6 +175,7 @@ export default async function LinkDetailPage({ params, searchParams }) {
             <p className="mt-4 max-w-3xl text-base leading-8 text-[var(--ink-soft)]">
               {presentation.description || "This link is using the default landing copy. Add a custom description below if needed."}
             </p>
+            <p className="mt-3 text-sm text-[var(--ink-muted)]">Signed in as {user.email}</p>
           </div>
           <div className="flex flex-wrap gap-3">
             <Link
@@ -188,6 +192,14 @@ export default async function LinkDetailPage({ params, searchParams }) {
                 Open public link
               </Link>
             )}
+            <form action={signoutAction}>
+              <button
+                type="submit"
+                className="rounded-full border border-[var(--stroke)] px-5 py-3 font-semibold text-[var(--ink)] transition hover:bg-white"
+              >
+                Sign out
+              </button>
+            </form>
           </div>
         </header>
 
