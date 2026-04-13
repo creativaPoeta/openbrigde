@@ -62,6 +62,73 @@ function StatusBadge({ isActive }) {
   );
 }
 
+function BarList({ title, items, emptyLabel }) {
+  const max = items.length > 0 ? Math.max(...items.map((item) => item.count), 1) : 1;
+
+  return (
+    <div className="rounded-[1.5rem] bg-[var(--sand)] p-4">
+      <p className="text-sm font-semibold text-[var(--ink)]">{title}</p>
+      {items.length === 0 ? (
+        <p className="mt-3 text-sm text-[var(--ink-soft)]">{emptyLabel}</p>
+      ) : (
+        <div className="mt-4 grid gap-3">
+          {items.map((item) => (
+            <div key={item.label} className="grid gap-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="truncate text-[var(--ink-soft)]">{item.label}</span>
+                <span className="font-semibold text-[var(--ink)]">{item.count}</span>
+              </div>
+              <div className="h-2 rounded-full bg-white">
+                <div
+                  className="h-2 rounded-full bg-[var(--signal)]"
+                  style={{ width: `${Math.max(10, (item.count / max) * 100)}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TrendBars({ items }) {
+  const max = items.length > 0 ? Math.max(...items.map((item) => item.count), 1) : 1;
+
+  return (
+    <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
+      <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Trend</p>
+      <h2 className="mt-3 text-2xl font-bold">Last 7 days for this link</h2>
+
+      {items.length === 0 ? (
+        <div className="mt-6 rounded-[1.5rem] bg-[var(--sand)] px-5 py-6 text-sm text-[var(--ink-soft)]">
+          No trend data yet.
+        </div>
+      ) : (
+        <div className="mt-6 grid grid-cols-7 gap-3">
+          {items.map((item) => (
+            <div key={item.key} className="flex flex-col items-center gap-3">
+              <span className="text-xs font-semibold text-[var(--ink)]">{item.count}</span>
+              <div className="flex h-36 w-full items-end rounded-[1.5rem] bg-[var(--sand)] px-2 py-2">
+                <div
+                  className="w-full rounded-[1rem] bg-[var(--signal)]"
+                  style={{ height: `${item.count === 0 ? 10 : Math.max(14, (item.count / max) * 100)}%` }}
+                />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-[var(--ink-muted)]">
+                  {item.shortLabel}
+                </p>
+                <p className="text-xs text-[var(--ink-soft)]">{item.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export async function generateMetadata({ params }) {
   const { slug } = await params;
   return {
@@ -235,32 +302,24 @@ export default async function LinkDetailPage({ params, searchParams }) {
             <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Source mix</p>
               <h2 className="mt-3 text-2xl font-bold">Where this link is being opened</h2>
-              <div className="mt-6 flex flex-wrap gap-2">
-                {analytics.sourceMix.length === 0 ? (
-                  <span className="text-sm text-[var(--ink-soft)]">No source data yet.</span>
-                ) : (
-                  analytics.sourceMix.map((item) => (
-                    <span
-                      key={item.label}
-                      className="rounded-full border border-[var(--stroke)] bg-[var(--sand)] px-3 py-1 text-sm text-[var(--ink-soft)]"
-                    >
-                      {item.label}: {item.count}
-                    </span>
-                  ))
-                )}
-              </div>
-
               <div className="mt-6 grid gap-4 md:grid-cols-2">
-                <div className="rounded-[1.5rem] bg-[var(--sand)] p-4">
-                  <p className="text-sm font-semibold text-[var(--ink)]">In-app events</p>
-                  <p className="mt-3 text-3xl font-black text-[var(--ink)]">{analytics.inAppEvents}</p>
-                </div>
-                <div className="rounded-[1.5rem] bg-[var(--sand)] p-4">
-                  <p className="text-sm font-semibold text-[var(--ink)]">Fallbacks</p>
-                  <p className="mt-3 text-3xl font-black text-[var(--ink)]">{analytics.fallbackCount}</p>
+                <BarList title="Source apps" items={analytics.sourceMix} emptyLabel="No source data yet." />
+                <BarList title="Top countries" items={analytics.countryMix} emptyLabel="No country data yet." />
+                <BarList title="Event types" items={analytics.eventTypeMix} emptyLabel="No event data yet." />
+                <div className="grid gap-4">
+                  <div className="rounded-[1.5rem] bg-[var(--sand)] p-4">
+                    <p className="text-sm font-semibold text-[var(--ink)]">In-app events</p>
+                    <p className="mt-3 text-3xl font-black text-[var(--ink)]">{analytics.inAppEvents}</p>
+                  </div>
+                  <div className="rounded-[1.5rem] bg-[var(--sand)] p-4">
+                    <p className="text-sm font-semibold text-[var(--ink)]">Fallbacks</p>
+                    <p className="mt-3 text-3xl font-black text-[var(--ink)]">{analytics.fallbackCount}</p>
+                  </div>
                 </div>
               </div>
             </section>
+
+            <TrendBars items={analytics.eventTrend} />
 
             <section className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
               <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Recent events</p>
