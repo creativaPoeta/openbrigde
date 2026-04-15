@@ -209,3 +209,5 @@ $$;
 comment on table public.account_profiles is 'Owner-scoped billing and plan metadata for OpenBridge workspaces.';
 comment on table public.short_links is 'Owner-scoped smart links used by OpenBridge accounts.';
 comment on table public.link_events is 'Public click and handoff telemetry linked back to an owner through short_links.link_id.';
+
+notify pgrst, 'reload schema';
