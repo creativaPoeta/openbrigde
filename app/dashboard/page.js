@@ -1,5 +1,6 @@
 import { signoutAction } from "@/app/auth/actions";
 import Link from "next/link";
+import { getAccountWorkspaceSnapshot } from "@/lib/accounts/repository";
 import { createShortLinkAction } from "@/app/dashboard/actions";
 import LinkUtilityActions from "@/components/links/LinkUtilityActions";
 import PlatformMark from "@/components/links/PlatformMark";
@@ -51,6 +52,36 @@ function SummaryCard({ label, value, tone = "default" }) {
       <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">{label}</p>
       <p className="mt-3 text-3xl font-black text-[var(--ink)]">{value}</p>
     </article>
+  );
+}
+
+function PlanBadge({ planLabel, billingStatus }) {
+  const statusLabel = String(billingStatus || "trial").replace(/_/g, " ");
+
+  return (
+    <div className="flex flex-wrap items-center gap-3">
+      <span className="inline-flex rounded-full bg-[var(--signal)]/12 px-4 py-2 text-xs font-semibold uppercase tracking-[0.22em] text-[var(--signal)]">
+        {planLabel}
+      </span>
+      <span className="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">{statusLabel}</span>
+    </div>
+  );
+}
+
+function UsageMeter({ currentValue, usagePercent, limitLabel }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <span className="text-[var(--ink-soft)]">{currentValue} tracked this month</span>
+        <span className="font-semibold text-[var(--ink)]">{limitLabel} cap</span>
+      </div>
+      <div className="mt-3 h-3 rounded-full bg-white">
+        <div
+          className="h-3 rounded-full bg-[var(--signal)]"
+          style={{ width: `${usagePercent === null ? 100 : Math.max(8, usagePercent)}%` }}
+        />
+      </div>
+    </div>
   );
 }
 
@@ -157,6 +188,10 @@ export default async function DashboardPage({ searchParams }) {
     source: params.source,
     campaign: params.campaign,
   };
+  const accountResult = await getAccountWorkspaceSnapshot({
+    userId: user.id,
+    email: user.email || "",
+  });
   const linksResult = await listRecentLinks(12, filters, user.id);
   const eventsResult = await listRecentEvents(20, filters, user.id);
   const summaryResult = await getDashboardSummary(filters, user.id);
@@ -211,6 +246,65 @@ export default async function DashboardPage({ searchParams }) {
         </header>
 
         <Flash created={params.created} error={params.error} status={params.status} />
+
+        <section className="grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+          <article className="rounded-[2rem] border border-[var(--stroke)] bg-white/82 p-6 shadow-[0_25px_80px_rgba(29,43,59,0.08)]">
+            <p className="text-xs uppercase tracking-[0.25em] text-[var(--ink-muted)]">Workspace plan</p>
+            <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+              <div>
+                <PlanBadge
+                  planLabel={accountResult.data.profile.planLabel}
+                  billingStatus={accountResult.data.profile.billingStatus}
+                />
+                <h2 className="mt-4 text-2xl font-bold">{accountResult.data.profile.workspaceName}</h2>
+                <p className="mt-3 max-w-2xl text-sm leading-7 text-[var(--ink-soft)]">
+                  {accountResult.data.profile.planSummary}
+                </p>
+              </div>
+              <div className="rounded-[1.5rem] bg-[var(--sand)] px-5 py-4 text-sm">
+                <p className="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">Plan price</p>
+                <p className="mt-2 text-xl font-black text-[var(--ink)]">{accountResult.data.profile.priceLabel}</p>
+              </div>
+            </div>
+
+            <div className="mt-6 rounded-[1.5rem] bg-[var(--sand)] p-5">
+              <p className="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">
+                {accountResult.data.usage.currentMonthLabel || "Current cycle"}
+              </p>
+              <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_auto] lg:items-center">
+                <UsageMeter
+                  currentValue={accountResult.data.usage.currentMonthEventsLabel}
+                  usagePercent={accountResult.data.usage.usagePercent}
+                  limitLabel={accountResult.data.profile.monthlyEventLimitLabel}
+                />
+                <div className="rounded-[1.25rem] bg-white px-5 py-4 text-sm">
+                  <p className="text-xs uppercase tracking-[0.22em] text-[var(--ink-muted)]">Remaining</p>
+                  <p className="mt-2 text-xl font-black text-[var(--ink)]">
+                    {accountResult.data.usage.remainingEventsLabel}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="mt-4 text-sm leading-7 text-[var(--ink-soft)]">{accountResult.data.usage.trackingPolicy}</p>
+
+            {accountResult.error && (
+              <div className="mt-5 rounded-[1.5rem] border border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-900">
+                {accountResult.error}
+              </div>
+            )}
+          </article>
+
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-1">
+            <SummaryCard label="Tracked This Month" value={accountResult.data.usage.currentMonthEventsLabel} />
+            <SummaryCard label="Active Links" value={accountResult.data.usage.activeLinksLabel} />
+            <SummaryCard
+              label="Remaining Quota"
+              value={accountResult.data.usage.remainingEventsLabel}
+              tone={accountResult.data.usage.limitReached ? "default" : "accent"}
+            />
+          </div>
+        </section>
 
         <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
           <SummaryCard label="Total Links" value={summaryResult.data.totalLinks} />

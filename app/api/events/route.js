@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { canStoreTrackedEvent } from "@/lib/accounts/repository";
 import { getSupabaseAdminClient } from "@/lib/supabase/admin";
 
 const ALLOWED_EVENTS = new Set([
@@ -31,6 +32,27 @@ function getGeoMeta(headers) {
   return geo;
 }
 
+async function resolveLinkRow(client, body) {
+  const linkId = cleanText(body.linkId, 80);
+  const slug = cleanText(body.slug, 120);
+
+  if (linkId) {
+    const { data } = await client.from("short_links").select("id, owner_id, slug").eq("id", linkId).maybeSingle();
+    if (data) {
+      return data;
+    }
+  }
+
+  if (slug) {
+    const { data } = await client.from("short_links").select("id, owner_id, slug").eq("slug", slug).maybeSingle();
+    if (data) {
+      return data;
+    }
+  }
+
+  return null;
+}
+
 export async function POST(req) {
   let body;
 
@@ -53,10 +75,25 @@ export async function POST(req) {
   const incomingMeta = body.meta && typeof body.meta === "object" ? body.meta : {};
   const geo = getGeoMeta(req.headers);
   const eventMeta = geo ? { ...incomingMeta, geo } : incomingMeta;
+  const linkRow = await resolveLinkRow(client, body);
+
+  if (linkRow?.owner_id) {
+    const allowance = await canStoreTrackedEvent(linkRow.owner_id);
+    if (!allowance.allowed) {
+      return NextResponse.json({
+        ok: true,
+        stored: false,
+        reason: allowance.reason,
+        currentMonthEvents: allowance.currentMonthEvents,
+        monthlyEventLimit: allowance.monthlyEventLimit,
+        planKey: allowance.planKey,
+      });
+    }
+  }
 
   const { error } = await client.from("link_events").insert({
-    link_id: cleanText(body.linkId, 80) || null,
-    slug_snapshot: cleanText(body.slug, 120),
+    link_id: linkRow?.id || cleanText(body.linkId, 80) || null,
+    slug_snapshot: linkRow?.slug || cleanText(body.slug, 120),
     event_type: eventType,
     destination_url: cleanText(body.destinationUrl, 500),
     page_url: cleanText(body.pageUrl, 500),
